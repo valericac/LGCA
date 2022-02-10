@@ -1,0 +1,135 @@
+---
+title: "LGCA"
+author: "Valerie Hofmann"
+date: "18 1 2022"
+output:
+pdf_document:
+keep_tex: yes
+latex_engine: xelatex
+html_document:
+df_print: paged
+header-includes:
+- \usepackage{fancyhdr}
+- \usepackage{dcolumn}
+- \pagestyle{fancy}
+- \lhead{01 2 2022}
+- \chead{Valerie Hofmann}
+- \rhead{Latent Growth Curve Analysis}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+comment = FALSE, fig.align='center', fig.width = 4, fig.height = 4,  echo=FALSE, warning = FALSE, results = 'asis', message = FALSE, root.dir = 'C:/Users/hofma/Desktop/FRESHMO/02_data/'
+)
+```
+
+# Checking for Multivariate Normal Distribution before Starting the Latent Growth Curve Modelling
+
+```{r, intset, fig.width = 8, fig.height = 8}
+#########
+# Performing the Latent Growth Curve
+#########
+#####
+library(psych)
+library(lme4)
+library(lavaan)
+library(tidyr)
+library(ggplot2)
+library(gridExtra)
+library(lme4)
+library(stargazer)
+library(knitr)
+library(float)
+library(corrplot)
+library(dplyr)
+library(readr)
+library(stargazer)
+library(ggpubr)
+#library(data.table)
+library(tidyverse)
+library(caret)
+
+#####
+extra_long <- readr::read_csv("C:/Users/hofma/Desktop/LGC/02_data/Extra_BL_to_FU2_nona_long_sum.csv", col_names = TRUE, col_types = cols(ID = "c"))
+extra_wide <- readr::read_csv("C:/Users/hofma/Desktop/LGC/02_data/Extra_BL_to_FU2_nona.csv", col_names = TRUE, col_types = cols(ID = "c"))
+
+#colnames(extra_wide)
+#colnames(extra_long)
+
+#### Check for Mulitvariate Normal Distribution in Items
+dat <-  extra_long %>% select(sleep_duration , "30_min_training" , outside , worried_in_general ,sad_happy , enjoy_activities , relaxed_worried , rumminat , exhausted , concentration , irritable , lonely , neg_toughts , self_harm)
+x <- as.matrix(dat)
+```
+
+
+
+```{r, corp1, fig.width = 10, fig.height = 10}
+####corrplott between Items over all time points
+resdat <- cor(dat)
+resdat <- round(resdat, 2)
+col <- colorRampPalette(c("#4477AA", "#77AADD", "#FFFFFF", "#EE9988", "#BB4444"))
+corrplot(resdat, method="color", col=col(200),
+type="upper", order="hclust",
+addCoef.col = "#000000", # Add coefficient of correlation
+tl.col="#000000", tl.srt=45, #Text label color and rotation
+# hide correlation coefficient on the principal diagonal
+diag=FALSE
+)
+```
+
+## Overview of Items and Scale (German Version)
+
+The IMAGEN Team has create their own questionnaire based on Expert Ratings.
+**In the last two weeks**:
+1. **EW2W1: worried_in_general** - ...wie besorgt waren Sie im Allgemeinen? - Range: 0 = Ãberhaupt nicht, 4 = sehr
+2. **EW2W2: sad_happy** - ...wie glÃ¼cklich oder traurig waren Sie? -  Range: 0 = sehr trauig, 4 = sehr glÃ¼cklich
+3. **EW2W3 - enjoy_activities** - ...wie sehr konnten Sie Ihre Ã¼blichen AktivitÃ¤ten genieÃen?, Range: 0 = Ãberhaupt nicht, 4 = sehr
+4. **EW2W4 -  relaxed_worried** - ...wie entspannt oder Ã¤ngstlich waren Sie? Range: 0 = sehr entspannt und ruigh, 4 = sehr nervÃ¶s
+5. **EW2W5 - rumminat** - ...wie zappelig oder unruhig waren Sie? -  Range: 0 = Ã¼berhaupt nicht zappelig, 4 = sehr zappelig
+6. **EW2W6 - exhausted** - ...wie erschÃ¶pft oder mÃ¼de waren Sie? - Range: 0 = Ã¼berhaupt nicht erschÃ¶pft, 4 = sehr erschÃ¶pft
+7. **EW2W7 - concentration** -  ...wie gut konnten Sie sich konzentrieren oder fokussieren? -  Range: 0 = sehr fokussiert, 4 = sehr unfokussiert
+8.**EW2W8 - irritable** - ...wie irritierbar oder reizbar sind Sie gewesen? - Range: 0 = Ãberhaupt nicht, 4 = sehr
+9. **EW2W9 - lonely** - ...wie einsam waren Sie? - Range: 0 = Ãberhaupt nicht, 4 = sehr
+10. **EW2W10 - neg_toughts** - ...inwieweit haben Sie negative Gedanken gehabt und Ã¼ber unangenehme Erfahrungen oder Dinge nachgedacht, die Ihnen ein schlechtes GefÃ¼hl bereitet haben? - Range: 0 = Ãberhaupt nicht, 4 die meiste Zeit
+11. **EW2W11 - self_harm** - ...haben Sie absichtlich versucht sich selbst zu verletzen oder weh zu tun? - Range: 0 = Ã¼berhaupt nicht, 4 = Die meiste Zeit
+
+```{r, checkup, fig.width = 6, fig.height = 6}
+##
+hist = ggplot(extra_long, aes(x=Symptoms_SUM)) + geom_histogram(color="#000000", fill="#0072B2", alpha=0.6, bins = 30)
+hist + scale_x_continuous(limits= c(0, 40)) + scale_y_continuous(limits=c(0, 180)) + theme_bw() + labs(x = "Summed Values of Items", y = "Count", title =  "Symptom Sums Distribution")
+#Check if Sums are normal though
+
+s <- shapiro.test(extra_long$Symptoms_SUM)
+# da p < 0.05 auch hier keine Normalverteilung anzunehmen, allerdings auch leichte Abweichungen werden signifikant
+# widely recommended for normality test and it provides better power than K-S. It is based on the correlation between the data and the corresponding normal scores.
+#Note that, normality test is sensitive to sample size. Small samples most often pass normality tests. Therefore, itâs important to combine visual inspection and significance test in # order to take the right decision.
+s
+
+```
+
+
+```{r, checkup_hist, fig.width = 6, fig.height = 6}
+multi.hist(dat, bcol = "#0072B2")
+
+##Desnity for Bell Shape
+ggdensity(extra_long$Symptoms_SUM, main = "Density plot of Symptom Sums", xlab = "Summed Values", ylab = "Density")
+
+###Corr between Sample and Normal Distribution
+ggqqplot(extra_long$Symptoms_SUM, main = "QQ-Plot of Symtom Sums and Normal Distribution",  color = "#999933")
+
+#or quantile-quantile plot) draws the correlation between a given sample and the normal distribution. A 45-degree reference line is also plotted.
+ep <- readr::read_csv("C:/Users/hofma/Desktop/LGC/02_data/PHQ9EXTRA_BL_to_FU2_sums.csv", col_names = TRUE, col_types = cols(ID = "c"))
+
+ep_cor <- ep[, c(2,10:20)]
+resep <- cor(ep_cor)
+resep <- round(resep, 2)
+col <- colorRampPalette(c("#4477AA", "#77AADD", "#FFFFFF", "#EE9988", "#BB4444"))
+corrplot(resep, method="color", col=col(200),
+type="upper", order="hclust",
+
+addCoef.col = "#000000", # Add coefficient of correlation
+tl.col="#000000", tl.srt=45, #Text label color and rotation
+# hide correlation coefficient on the principal diagonal
+diag=FALSE
+)
+```
